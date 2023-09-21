@@ -222,7 +222,7 @@ class ReverseDiffusionMirroredPredictor(Predictor):
     z = torch.randn_like(x)
     y = self.cov.forward(x)
     G = G[:, None, None, None]
-    y_mean = y - self.cov.grad_forward(x) * f + 0.5 * G ** 2 * ito_correction
+    y_mean = y - self.cov.grad_forward(x) * f + 0.5 * G ** 2 * self.cov.ito_correction(x)
     y = y_mean + self.cov.grad_forward(x) * G
     return self.cov.backward(y), self.cov.backward(y_mean)
 
@@ -343,6 +343,50 @@ class LangevinCorrector(Corrector):
 
     return x, x_mean
 
+
+@register_corrector(name='mirrored_langevin')
+class LangevinMirroredCorrector(LangevinCorrector):
+  def __init__(self, sde, score_fn, snr, n_steps, cov_args={}):
+    super().__init__(sde, score_fn, snr, n_steps)
+    self.cov = self.get_cov(**cov_args)
+
+  def get_cov(self, method=None):
+    if method == 'bounded':
+      return Bounded()
+    elif method == 'simplex':
+      return Simplex()
+    elif method == 'ball':
+       return Ball()
+    else:
+       print("Unrecognized.")
+
+  def update_fn(self, x, t):
+    sde = self.sde
+    score_fn = self.score_fn
+    n_steps = self.n_steps
+    target_snr = self.snr
+    if isinstance(sde, sde_lib.VPSDE) or isinstance(sde, sde_lib.subVPSDE):
+      timestep = (t * (sde.N - 1) / sde.T).long()
+      alpha = sde.alphas.to(t.device)[timestep]
+    else:
+      alpha = torch.ones_like(t)
+    
+    for i in range(n_steps):
+      grad = score_fn(x, t)
+      noise = torch.randn_like(x)
+      grad_norm = torch.norm(grad.reshape(grad.shape[0], -1), dim=-1).mean()
+      noise_norm = torch.norm(noise.reshape(noise.shape[0], -1), dim=-1).mean()
+      step_size = (target_snr * noise_norm / grad_norm) ** 2 * 2 * alpha
+      
+      y = self.cov.forward(x)
+      f = step_size[:, None, None, None] * grad
+      G = torch.sqrt(step_size * 2)[:, None, None, None] * noise
+      
+      y_mean = y + self.cov.grad_forward(x) * f + 0.5 * G ** 2 * self.cov.ito_correction(x)
+      y = y_mean + self.cov.grad_forward(x) * G 
+      x = self.cov.backward(y)
+      x_mean = self.cov.backward(y_mean)
+    return x, x_mean    
 
 @register_corrector(name='ald')
 class AnnealedLangevinDynamics(Corrector):

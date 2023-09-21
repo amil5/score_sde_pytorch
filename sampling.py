@@ -214,6 +214,8 @@ class ReverseDiffusionMirroredPredictor(Predictor):
         return Ball()
     elif method == 'simplex':
         return Simplex()
+    elif method == 'identity':
+        return Identity()
     else:
       print("Unrecognized cov method. Defaulting back to lambda x: x")
 
@@ -251,6 +253,19 @@ class Bounded(COV):
   def ito_correction(self, x):
     return 2 * x / ((x**2 - 1) ** 2)
 
+
+class Identity(COV):
+  def forward(self, x):
+    return x
+
+  def grad_forward(self, x):
+    return torch.ones_like(x)
+
+  def backward(self, x):
+    return x
+  
+  def ito_correction(self, x):
+    return torch.zeros_like(x)
 
 class Ball(COV):
   def forward(self, x):
@@ -357,6 +372,8 @@ class LangevinMirroredCorrector(Corrector):
       return Simplex()
     elif method == 'ball':
        return Ball()
+    elif method == 'identity':
+       return Identity()
     else:
        print("Unrecognized.")
 
@@ -506,8 +523,10 @@ def get_pc_sampler(sde, shape, predictor, corrector, inverse_scaler, snr,
     """
     with torch.no_grad():
       # Initial sample
-      if start_x0:
+      if isinstance(start_x0, bool) and start_x0:
         x = torch.zeros(shape).to(device)
+      elif start_x0 is not None:
+	x = start_x0.to(device)
       else:
       	x = sde.prior_sampling(shape).to(device)
       timesteps = torch.linspace(sde.T, eps, sde.N, device=device)

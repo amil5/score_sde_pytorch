@@ -248,7 +248,7 @@ class Bounded(COV):
     return torch.tanh(x)
 
   def ito_correction(self, x):
-    return 2x / ((x**2 - 1) ** 2)
+    return 2 * x / ((x**2 - 1) ** 2)
 
 
 class Ball(COV):

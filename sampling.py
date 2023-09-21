@@ -208,7 +208,7 @@ class ReverseDiffusionMirroredPredictor(Predictor):
 
   def get_cov(self, method=None):
     if method == 'bounded':
-	return Bounded()
+        return Bounded()
     elif method == 'ball':
         return Ball()
     elif method == 'simplex'
@@ -239,16 +239,16 @@ class COV(Object):
 
 class Bounded(COV):
   def forward(self, x):
-	return torch.atanh(x)
+    return torch.atanh(x)
 
   def grad_forward(self, x):
-       return (1/(1-x**2))
+    return (1/(1-x**2))
 
   def backward(self, x):
-        return torch.tanh(x)
+    return torch.tanh(x)
 
   def ito_correction(self, x):
-        return 2x / ((x**2 - 1) ** 2)
+    return 2x / ((x**2 - 1) ** 2)
 
 
 class Ball(COV):

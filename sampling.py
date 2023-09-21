@@ -211,7 +211,7 @@ class ReverseDiffusionMirroredPredictor(Predictor):
         return Bounded()
     elif method == 'ball':
         return Ball()
-    elif method == 'simplex'
+    elif method == 'simplex':
         return Simplex()
     else:
       print("Unrecognized cov method. Defaulting back to lambda x: x")

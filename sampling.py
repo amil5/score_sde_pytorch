@@ -226,7 +226,7 @@ class ReverseDiffusionMirroredPredictor(Predictor):
     return self.cov.backward(y), self.cov.backward(y_mean)
 
 
-class COV(Object):
+class COV(abc.ABC):
   def forward(self, x):
     pass
   

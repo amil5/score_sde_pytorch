@@ -345,7 +345,7 @@ class LangevinCorrector(Corrector):
 
 
 @register_corrector(name='mirrored_langevin')
-class LangevinMirroredCorrector(LangevinCorrector):
+class LangevinMirroredCorrector(Corrector):
   def __init__(self, sde, score_fn, snr, n_steps, **cov_args):
     super().__init__(sde, score_fn, snr, n_steps)
     self.cov = self.get_cov(**cov_args)

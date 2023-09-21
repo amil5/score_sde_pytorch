@@ -354,7 +354,7 @@ def shared_corrector_update_fn(x, t, sde, model, corrector, continuous, snr, n_s
 
 def get_pc_sampler(sde, shape, predictor, corrector, inverse_scaler, snr,
                    n_steps=1, probability_flow=False, continuous=False,
-                   denoise=True, eps=1e-3, device='cuda'):
+                   denoise=True, eps=1e-3, device='cuda', start_x0=None):
   """Create a Predictor-Corrector (PC) sampler.
 
   Args:
@@ -397,7 +397,10 @@ def get_pc_sampler(sde, shape, predictor, corrector, inverse_scaler, snr,
     """
     with torch.no_grad():
       # Initial sample
-      x = sde.prior_sampling(shape).to(device)
+      if start_x0:
+        x = start_x0.to(device)
+      else:
+      	x = sde.prior_sampling(shape).to(device)
       timesteps = torch.linspace(sde.T, eps, sde.N, device=device)
 
       for i in range(sde.N):

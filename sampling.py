@@ -436,31 +436,32 @@ class NoneCorrector(Corrector):
     return x, x
 
 
-def shared_predictor_update_fn(x, t, sde, model, predictor, probability_flow, continuous):
+def shared_predictor_update_fn(x, t, sde, model, predictor, probability_flow, continuous, cov_args={}):
   """A wrapper that configures and returns the update function of predictors."""
   score_fn = mutils.get_score_fn(sde, model, train=False, continuous=continuous)
   if predictor is None:
     # Corrector-only sampler
     predictor_obj = NonePredictor(sde, score_fn, probability_flow)
   else:
-    predictor_obj = predictor(sde, score_fn, probability_flow)
+    predictor_obj = predictor(sde, score_fn, probability_flow, **cov_args)
   return predictor_obj.update_fn(x, t)
 
 
-def shared_corrector_update_fn(x, t, sde, model, corrector, continuous, snr, n_steps):
+def shared_corrector_update_fn(x, t, sde, model, corrector, continuous, snr, n_steps, cov_args={}):
   """A wrapper tha configures and returns the update function of correctors."""
   score_fn = mutils.get_score_fn(sde, model, train=False, continuous=continuous)
   if corrector is None:
     # Predictor-only sampler
     corrector_obj = NoneCorrector(sde, score_fn, snr, n_steps)
   else:
-    corrector_obj = corrector(sde, score_fn, snr, n_steps)
+    corrector_obj = corrector(sde, score_fn, snr, n_steps, **cov_args)
   return corrector_obj.update_fn(x, t)
 
 
 def get_pc_sampler(sde, shape, predictor, corrector, inverse_scaler, snr,
                    n_steps=1, probability_flow=False, continuous=False,
-                   denoise=True, eps=1e-3, device='cuda', start_x0=None):
+                   denoise=True, eps=1e-3, device='cuda', start_x0=None,
+                   **cov_args):
   """Create a Predictor-Corrector (PC) sampler.
 
   Args:
@@ -485,13 +486,15 @@ def get_pc_sampler(sde, shape, predictor, corrector, inverse_scaler, snr,
                                           sde=sde,
                                           predictor=predictor,
                                           probability_flow=probability_flow,
-                                          continuous=continuous)
+                                          continuous=continuous,
+				          **cov_args)
   corrector_update_fn = functools.partial(shared_corrector_update_fn,
                                           sde=sde,
                                           corrector=corrector,
                                           continuous=continuous,
                                           snr=snr,
-                                          n_steps=n_steps)
+                                          n_steps=n_steps,
+					  **cov_args)
 
   def pc_sampler(model):
     """ The PC sampler funciton.
@@ -504,7 +507,7 @@ def get_pc_sampler(sde, shape, predictor, corrector, inverse_scaler, snr,
     with torch.no_grad():
       # Initial sample
       if start_x0:
-        x = start_x0.to(device)
+        x = torch.zeros(shape).to(device)
       else:
       	x = sde.prior_sampling(shape).to(device)
       timesteps = torch.linspace(sde.T, eps, sde.N, device=device)

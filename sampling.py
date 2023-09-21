@@ -1,4 +1,4 @@
-# coding=utf-8
+coding=utf-8
 # Copyright 2020 The Google Research Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -198,6 +198,67 @@ class ReverseDiffusionPredictor(Predictor):
     x_mean = x - f
     x = x_mean + G[:, None, None, None] * z
     return x, x_mean
+
+
+@register_predictor(name='reverse_diffusion_mirrored')
+class ReverseDiffusionMirroredPredictor(Predictor):
+  def __init__(self, sde, score_fn, probability_flow=False, cov_args={}):
+    super().__init__(sde, score_fn, probability_flow)
+    self.cov = self.get_cov(**cov_args)
+
+  def get_cov(self, method=None):
+    if method == 'bounded':
+	return Bounded()
+    elif method == 'ball':
+        return Ball()
+    elif method == 'simplex'
+        return Simplex()
+    else:
+      print("Unrecognized cov method. Defaulting back to lambda x: x")
+
+  def update_fn(self, x, t):
+    f, G = self.rsde.discretize(x, t)
+    z = torch.randn_like(x)
+    y = self.cov.forward(x)
+    G = G[:, None, None, None]
+    y_mean = y - self.cov.grad_forward(x) * f + 0.5 * G ** 2 * ito_correction
+    y = y_mean + self.cov.grad_forward(x) * G
+    return self.cov.backward(y), self.cov.backward(y_mean)
+
+
+class COV(Object):
+  def forward(self, x):
+    pass
+  
+  def backward(self, x):
+    pass
+
+  def ito_correction(self, x):
+    pass
+
+
+class Bounded(COV):
+  def forward(self, x):
+	return torch.atanh(x)
+
+  def grad_forward(self, x):
+       return (1/(1-x**2))
+
+  def backward(self, x):
+        return torch.tanh(x)
+
+  def ito_correction(self, x):
+        return 2x / ((x**2 - 1) ** 2)
+
+
+class Ball(COV):
+  def forward(self, x):
+    pass
+
+
+class Simplex(COV):
+  def foward(self, x):
+    pass
 
 
 @register_predictor(name='ancestral_sampling')

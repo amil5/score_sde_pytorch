@@ -203,7 +203,7 @@ class ReverseDiffusionPredictor(Predictor):
 
 @register_predictor(name='reverse_diffusion_mirrored')
 class ReverseDiffusionMirroredPredictor(Predictor):
-  def __init__(self, sde, score_fn, probability_flow=False, cov_args={}):
+  def __init__(self, sde, score_fn, probability_flow=False, **cov_args):
     super().__init__(sde, score_fn, probability_flow)
     self.cov = self.get_cov(**cov_args)
 
@@ -346,7 +346,7 @@ class LangevinCorrector(Corrector):
 
 @register_corrector(name='mirrored_langevin')
 class LangevinMirroredCorrector(LangevinCorrector):
-  def __init__(self, sde, score_fn, snr, n_steps, cov_args={}):
+  def __init__(self, sde, score_fn, snr, n_steps, **cov_args):
     super().__init__(sde, score_fn, snr, n_steps)
     self.cov = self.get_cov(**cov_args)
 
